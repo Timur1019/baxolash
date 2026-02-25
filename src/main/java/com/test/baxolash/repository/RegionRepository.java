@@ -1,0 +1,13 @@
+package com.test.baxolash.repository;
+
+import com.test.baxolash.entity.Region;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface RegionRepository extends JpaRepository<Region, String> {
+
+    List<Region> findByDeletedAtIsNullOrderBySortOrderAscNameUzAsc();
+}

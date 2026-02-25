@@ -1,0 +1,23 @@
+# Git и IDE
+.git
+.gitignore
+.idea
+*.iml
+.vscode
+
+# Сборки и кэш
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Контекст backend: фронт не нужен (собирается отдельным образом)
+frontend/
+
+# Логи и временные файлы
+*.log
+uploads/
+
+# Документация и прочее
+*.md
+Dockerfile*
+docker-compose*
+.dockerignore

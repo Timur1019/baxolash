@@ -1,0 +1,11 @@
+# Локальный запуск: скопируй в application-local.yml и подставь значения.
+# application-local.yml в .gitignore — в репозиторий не попадёт.
+# Запуск: --spring.profiles.active=local
+#
+# Для Render: JDBC URL = jdbc:postgresql://HOST:5432/DATABASE
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/baxolash
+    username: postgres
+    password: your_password
