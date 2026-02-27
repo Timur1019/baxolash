@@ -7,15 +7,14 @@ import com.lowagie.text.FontFactory;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfWriter;
 import com.test.baxolash.dto.EvaluationRequestDto;
+import com.test.baxolash.dto.FixedAssetItemDto;
+import com.test.baxolash.entity.EvaluationRequestType;
 import com.test.baxolash.exception.BusinessException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.*;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 
-import java.awt.Color;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -176,72 +175,8 @@ public final class EvaluationRequestExportUtil {
     //                       WORD
     // =====================================================
 
-    /**
-     * Сборка PDF-отчёта по заявке (для просмотра по QR-коду).
-     */
     public static byte[] buildPdfForRequest(EvaluationRequestDto dto) {
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Document doc = new Document();
-            PdfWriter.getInstance(doc, out);
-            doc.open();
-
-            Font fontTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.DARK_GRAY);
-            Font fontId = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 12, Color.GRAY);
-            Font fontSection = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, Color.DARK_GRAY);
-            Font fontLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.DARK_GRAY);
-            Font fontBody = FontFactory.getFont(FontFactory.HELVETICA, 11, Color.BLACK);
-
-            doc.add(new Paragraph("ОТЧЁТ ПО ЗАЯВКЕ НА ОЦЕНКУ", fontTitle));
-            String shortId = dto.getId() != null ? dto.getId().substring(0, Math.min(8, dto.getId().length())) : "—";
-            doc.add(new Paragraph("№ " + shortId, fontId));
-            doc.add(new Paragraph(" "));
-
-            addPdfSection(doc, "1. ОСНОВНАЯ ИНФОРМАЦИЯ", fontSection);
-            addPdfRow(doc, "Дата создания:", formatDateTime(dto.getCreatedAt()), fontLabel, fontBody);
-            addPdfRow(doc, "Статус заявки:", formatStatus(dto.getStatus()), fontLabel, fontBody);
-            addPdfRow(doc, "Клиент:", formatClient(dto.getClientFullName(), dto.getClientEmail()), fontLabel, fontBody);
-            addPdfRow(doc, "Стоимость оценки:", formatCost(dto.getCost()), fontLabel, fontBody);
-
-            addPdfSection(doc, "2. ОБЪЕКТ ОЦЕНКИ", fontSection);
-            addPdfRow(doc, "Наименование:", dto.getAppraisedObjectName(), fontLabel, fontBody);
-            addPdfRow(doc, "Описание:", dto.getObjectDescription(), fontLabel, fontBody);
-            addPdfRow(doc, "Кадастровый номер:", dto.getCadastralNumber(), fontLabel, fontBody);
-            addPdfRow(doc, "Цель оценки:", dto.getAppraisalPurpose(), fontLabel, fontBody);
-            addPdfRow(doc, "Адрес:", dto.getObjectAddress(), fontLabel, fontBody);
-            addPdfRow(doc, "Координаты:", formatCoordinates(dto.getLatitude(), dto.getLongitude()), fontLabel, fontBody);
-
-            addPdfSection(doc, "3. ЗАЁМЩИК И КОНТАКТЫ", fontSection);
-            addPdfRow(doc, "Заёмщик:", dto.getBorrowerName(), fontLabel, fontBody);
-            addPdfRow(doc, "ИНН заёмщика:", dto.getBorrowerInn(), fontLabel, fontBody);
-            addPdfRow(doc, "Телефон владельца:", dto.getOwnerPhone(), fontLabel, fontBody);
-            addPdfRow(doc, "Телефон банка:", dto.getBankEmployeePhone(), fontLabel, fontBody);
-
-            if (dto.getRegionNameUz() != null || dto.getDistrictNameUz() != null) {
-                addPdfSection(doc, "4. МЕСТОПОЛОЖЕНИЕ", fontSection);
-                addPdfRow(doc, "Регион:", dto.getRegionNameUz(), fontLabel, fontBody);
-                addPdfRow(doc, "Район:", dto.getDistrictNameUz(), fontLabel, fontBody);
-                addPdfRow(doc, "Адрес местоположения:", dto.getLocationAddress(), fontLabel, fontBody);
-            }
-
-            doc.close();
-            return out.toByteArray();
-        } catch (DocumentException | IOException e) {
-            throw new BusinessException("Ошибка при создании PDF-отчёта");
-        }
-    }
-
-    private static void addPdfSection(Document doc, String title, Font fontSection) throws DocumentException {
-        doc.add(new Paragraph(" "));
-        doc.add(new Paragraph(title, fontSection));
-        doc.add(new Paragraph(" "));
-    }
-
-    private static void addPdfRow(Document doc, String label, String value, Font fontLabel, Font fontBody) throws DocumentException {
-        if (value == null || value.isBlank() || "—".equals(value)) return;
-        Paragraph p = new Paragraph();
-        p.add(new com.lowagie.text.Chunk(label, fontLabel));
-        p.add(new com.lowagie.text.Chunk(" " + value, fontBody));
-        doc.add(p);
+        return EvaluationRequestPdfExportUtil.buildPdfForRequest(dto);
     }
 
     public static byte[] buildWordForRequest(EvaluationRequestDto dto) {
@@ -412,7 +347,7 @@ public final class EvaluationRequestExportUtil {
 
     // ==================== ФОРМАТТЕРЫ ====================
 
-    private static String formatDate(Object date) {
+    static String formatDate(Object date) {
         if (date == null) return "—";
         try {
             return DATE_FORMATTER.format((java.time.temporal.TemporalAccessor) date);
@@ -421,7 +356,7 @@ public final class EvaluationRequestExportUtil {
         }
     }
 
-    private static String formatDateTime(Object date) {
+    static String formatDateTime(Object date) {
         if (date == null) return "—";
         try {
             return DATE_TIME_FORMATTER.format((java.time.temporal.TemporalAccessor) date);
@@ -430,7 +365,7 @@ public final class EvaluationRequestExportUtil {
         }
     }
 
-    private static String formatStatus(Enum<?> status) {
+    static String formatStatus(Enum<?> status) {
         if (status == null) return "—";
         return switch (status.name()) {
             // ✅ Реальные статусы из БД
@@ -450,19 +385,37 @@ public final class EvaluationRequestExportUtil {
         };
     }
 
-    private static String formatCost(BigDecimal cost) {
+    static String formatRequestType(com.test.baxolash.entity.EvaluationRequestType type) {
+        if (type == null) return "—";
+        return switch (type) {
+            case REAL_ESTATE  -> "Недвижимость";
+            case VEHICLE      -> "Транспортное средство";
+            case FIXED_ASSETS -> "Основные средства";
+        };
+    }
+
+    static String formatCost(BigDecimal cost) {
         if (cost == null) return "—";
         return String.format("%,d сум", cost.longValue()).replace(',', ' ');
     }
 
-    private static String formatClient(String name, String email) {
+    static String formatQuantity(BigDecimal quantity) {
+        if (quantity == null) return "—";
+        try {
+            return quantity.stripTrailingZeros().toPlainString();
+        } catch (Exception e) {
+            return quantity.toPlainString();
+        }
+    }
+
+    static String formatClient(String name, String email) {
         if (name == null && email == null) return "—";
         if (name == null) return email;
         if (email == null) return name;
         return name + " (" + email + ")";
     }
 
-    private static String formatCoordinates(BigDecimal lat, BigDecimal lng) {
+    static String formatCoordinates(BigDecimal lat, BigDecimal lng) {
         if (lat == null || lng == null) return "—";
         return String.format("%.6f, %.6f", lat.doubleValue(), lng.doubleValue());
     }
