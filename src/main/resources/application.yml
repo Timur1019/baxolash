@@ -2,20 +2,32 @@ spring:
   application:
     name: baxolash
 
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # Обработчик статики /** перехватывал /api/** до контроллеров. Отключаем — API приоритетнее.
+  web:
+    resources:
+      add-mappings: false
+
+  profiles:
+    active: local
+
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: jdbc:postgresql://localhost:5432/baxolash
+    username: postgres
+    password: 1
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-    open-in-view: false
-    show-sql: false
 
   flyway:
     enabled: true
@@ -30,11 +42,13 @@ security:
     secret: SGVyZUlzQVNpbXBsZVNlY3JldEtleU5vdEZvclByb2R1Y3Rpb24h
     validity-ms: 3600000
 
-# Cloudflare R2 (S3 compatible) — единственное хранилище файлов (env)
-# S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_BUCKET, S3_ENDPOINT, S3_PUBLIC_URL
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:*}
+  storage:
+    local-path: ./uploads
+  # Базовый URL для публичных ссылок (QR-код отчёта). На проде: https://your-backend.onrender.com
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
 
 logging:
   level:
@@ -42,25 +56,3 @@ logging:
     org.springframework: INFO
     com.test.baxolash: DEBUG
     org.flywaydb: DEBUG
-
-
-
-#  SPRING_DATASOURCE_URL=jdbc:postgresql://dpg-d6fo7j8gjchc73eb0uv0-a:5432/baxolash
-#  SPRING_DATASOURCE_USERNAME=baxolash_user
-#  SPRING_DATASOURCE_PASSWORD=15Bfgn9tu7fjzu8ZhVBYP1pi2Devxuwp
-#
-#  # CORS (comma-separated origins or * for all)
-#  APP_CORS_ALLOWED_ORIGINS=*
-#
-#  # S3 / Cloudflare R2
-#  S3_ACCESS_KEY=ТУТ_ACCESS_KEY
-#  S3_SECRET_KEY=ТУТ_SECRET_KEY
-#  S3_REGION=auto
-#  S3_BUCKET=baxolash
-#  S3_ENDPOINT=https://2d8d18375409da491dee03faffdf7699.r2.cloudflarestorage.com
-#  # Optional: public URL for uploaded files (e.g. https://your-bucket.r2.dev or custom domain)
-#  S3_PUBLIC_URL=https://2d8d18375409da491dee03faffdf7699.r2.cloudflarestorage.com/baxolash
-#
-## JWT (optional overrides; default in application.yml)
-## SECURITY_JWT_SECRET=
-## SECURITY_JWT_VALIDITY_MS=3600000

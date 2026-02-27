@@ -41,7 +41,8 @@ public class SecurityConfig {
                                 "/api/regions/*/districts",
                                 "/api/appraisal-purposes",
                                 "/api/evaluation-requests/statuses",
-                                "/api/evaluation-requests/export",
+                                "/api/public/report",
+//                                "/api/evaluation-requests/export",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"

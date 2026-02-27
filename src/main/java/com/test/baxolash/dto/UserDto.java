@@ -19,6 +19,12 @@ public class UserDto {
 
     private Boolean active;
 
+    /** Может редактировать заявки на оценку (назначает админ). */
+    private Boolean canEditEvaluationRequests;
+
+    /** Может удалять заявки на оценку (назначает админ). */
+    private Boolean canDeleteEvaluationRequests;
+
     /** Дата регистрации (created_at сущности). */
     private Instant createdAt;
 }

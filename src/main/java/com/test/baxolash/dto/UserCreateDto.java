@@ -32,5 +32,11 @@ public class UserCreateDto {
     @NotBlank
     @Size(min = 6, max = 100)
     private String password;
+
+    /** Может редактировать заявки на оценку (назначает админ). По умолчанию true. */
+    private Boolean canEditEvaluationRequests = true;
+
+    /** Может удалять заявки на оценку (назначает админ). По умолчанию true. */
+    private Boolean canDeleteEvaluationRequests = true;
 }
 

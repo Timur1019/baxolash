@@ -72,11 +72,45 @@ public class EvaluationRequestAccessValidator {
         validateAccessToRequest(current, request);
     }
 
-    /** Редактировать заявку может только компания/админ. */
-    public void validateCanUpdate(User current) {
-        if (current.getRole() != UserRole.COMPANY_EMPLOYEE && current.getRole() != UserRole.ADMIN) {
-            throw new BusinessException("Редактировать заявку могут только сотрудники оценочной компании");
+    /** Редактировать заявку: компания/админ — любую; клиент — только свою. Проверяет canEditEvaluationRequests (админ назначает). */
+    public void validateCanUpdate(User current, String requestId) {
+        EvaluationRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Заявка не найдена"));
+        validateAccessToRequest(current, request);
+        if (current.getRole() == UserRole.ADMIN) return;
+        if (Boolean.FALSE.equals(current.getCanEditEvaluationRequests())) {
+            throw new BusinessException("Администратор не дал право на редактирование заявок");
         }
+        if (current.getRole() == UserRole.COMPANY_EMPLOYEE) return;
+        if (current.getRole() == UserRole.CLIENT_EMPLOYEE) {
+            if (request.getClientUser() != null && request.getClientUser().getId().equals(current.getId())) {
+                return;
+            }
+        }
+        throw new BusinessException("Нет прав на редактирование заявки");
+    }
+
+    /** Удалить заявку: компания/админ — любую; клиент — только свою. Проверяет canDeleteEvaluationRequests (админ назначает). */
+    public void validateCanDelete(User current, EvaluationRequest request) {
+        if (current.getRole() == UserRole.ADMIN) return;
+        if (Boolean.FALSE.equals(current.getCanDeleteEvaluationRequests())) {
+            throw new BusinessException("Администратор не дал право на удаление заявок");
+        }
+        if (current.getRole() == UserRole.COMPANY_EMPLOYEE) return;
+        if (current.getRole() == UserRole.CLIENT_EMPLOYEE) {
+            if (request.getClientUser() != null && request.getClientUser().getId().equals(current.getId())) {
+                return;
+            }
+        }
+        throw new BusinessException("Нет прав на удаление заявки");
+    }
+
+    /** Проверка прав на удаление по id заявки. */
+    public void validateCanDeleteWithRequestId(User current, String requestId) {
+        EvaluationRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new NotFoundException("Заявка не найдена"));
+        validateAccessToRequest(current, request);
+        validateCanDelete(current, request);
     }
 
     /** Загружать документы: клиент — свои, компания/админ — любые. */

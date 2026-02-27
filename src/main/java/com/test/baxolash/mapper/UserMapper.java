@@ -19,6 +19,8 @@ public interface UserMapper extends BaseMapper<User, UserDto> {
         dto.setFullName(entity.getFullName());
         dto.setRole(entity.getRole() != null ? entity.getRole().name() : null);
         dto.setActive(entity.getActive());
+        dto.setCanEditEvaluationRequests(entity.getCanEditEvaluationRequests() != null ? entity.getCanEditEvaluationRequests() : true);
+        dto.setCanDeleteEvaluationRequests(entity.getCanDeleteEvaluationRequests() != null ? entity.getCanDeleteEvaluationRequests() : true);
         dto.setCreatedAt(entity.getCreatedAt());
         return dto;
     }
@@ -31,6 +33,8 @@ public interface UserMapper extends BaseMapper<User, UserDto> {
         entity.setFullName(dto.getFullName());
         entity.setRole(dto.getRole());
         entity.setActive(dto.getActive() != null ? dto.getActive() : true);
+        entity.setCanEditEvaluationRequests(dto.getCanEditEvaluationRequests() != null ? dto.getCanEditEvaluationRequests() : true);
+        entity.setCanDeleteEvaluationRequests(dto.getCanDeleteEvaluationRequests() != null ? dto.getCanDeleteEvaluationRequests() : true);
         entity.setPasswordHash(dto.getPassword() != null ? dto.getPassword() : ""); // сервис перезапишет хешем
         return entity;
     }
@@ -46,5 +50,7 @@ public interface UserMapper extends BaseMapper<User, UserDto> {
             } catch (IllegalArgumentException ignored) { /* оставляем текущее значение */ }
         }
         existing.setActive(dto.getActive() != null ? dto.getActive() : true);
+        if (dto.getCanEditEvaluationRequests() != null) existing.setCanEditEvaluationRequests(dto.getCanEditEvaluationRequests());
+        if (dto.getCanDeleteEvaluationRequests() != null) existing.setCanDeleteEvaluationRequests(dto.getCanDeleteEvaluationRequests());
     }
 }

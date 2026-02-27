@@ -4,9 +4,10 @@ import com.test.baxolash.dto.EvaluationRequestCreateDto;
 import com.test.baxolash.dto.EvaluationRequestDto;
 import com.test.baxolash.dto.EvaluationRequestFilterParams;
 import com.test.baxolash.dto.EvaluationRequestUpdateDto;
+import com.test.baxolash.entity.EvaluationRequestType;
+import com.test.baxolash.entity.enums.UserRole;
 import com.test.baxolash.dto.FileDownloadResult;
 import com.test.baxolash.entity.enums.EvaluationRequestStatus;
-import com.test.baxolash.entity.EvaluationRequestType;
 import com.test.baxolash.entity.User;
 import com.test.baxolash.service.EvaluationRequestAccessValidator;
 import com.test.baxolash.service.EvaluationRequestService;
@@ -44,18 +45,27 @@ public class EvaluationRequestFacade implements EvaluationRequestService {
 
     @Override
     @Transactional
-    public EvaluationRequestDto createWithDocument(EvaluationRequestCreateDto dto, MultipartFile cadastralDocument,
-                                                   MultipartFile techPassportDocument, MultipartFile fixedAssetsDocument) {
-        EvaluationRequestDto created = create(dto);
-        MultipartFile fileToUpload = resolveDocumentForRequestType(dto, cadastralDocument, techPassportDocument, fixedAssetsDocument);
+    public EvaluationRequestDto createWithDocument(
+            EvaluationRequestCreateDto dto,
+            MultipartFile cadastralDocument,
+            MultipartFile techPassportDocument,
+            MultipartFile fixedAssetsDocument) {
+        User current = accessValidator.getCurrentUser();
+        accessValidator.validateClientCanCreate(current);
+        EvaluationRequestDto created = crudService.create(dto, current);
+        MultipartFile fileToUpload = resolveDocumentForRequestType(
+                dto,
+                cadastralDocument,
+                techPassportDocument,
+                fixedAssetsDocument
+        );
         if (fileToUpload != null && !fileToUpload.isEmpty()) {
-            User current = accessValidator.getCurrentUser();
-            accessValidator.validateCanUploadDocument(current, created.getId());
             documentService.uploadDocument(created.getId(), fileToUpload, current);
             return crudService.getById(created.getId());
         }
         return created;
     }
+
 
     private static MultipartFile resolveDocumentForRequestType(EvaluationRequestCreateDto dto,
                                                                MultipartFile cadastral, MultipartFile techPassport, MultipartFile fixedAssets) {
@@ -112,9 +122,73 @@ public class EvaluationRequestFacade implements EvaluationRequestService {
     @Transactional
     public EvaluationRequestDto update(String id, EvaluationRequestUpdateDto dto) {
         User current = accessValidator.getCurrentUser();
-        accessValidator.validateCanUpdate(current);
-        accessValidator.validateAccessToRequestId(current, id);
-        return crudService.update(id, dto);
+        accessValidator.validateCanUpdate(current, id);
+        EvaluationRequestDto existing = crudService.getById(id);
+        EvaluationRequestType requestType = existing.getRequestType() != null
+                ? existing.getRequestType() : EvaluationRequestType.REAL_ESTATE;
+        EvaluationRequestUpdateDto filtered = filterUpdateDtoByRole(current, dto, requestType);
+        return crudService.update(id, filtered);
+    }
+
+    /**
+     * Клиент редактирует только поля, которые заполняет при создании (по типу заявки).
+     * Сотрудник компании — только поля, которые заполняет при работе (статус, стоимость, объект, заёмщик и т.д.).
+     */
+    private EvaluationRequestUpdateDto filterUpdateDtoByRole(User current, EvaluationRequestUpdateDto dto,
+                                                             EvaluationRequestType requestType) {
+        if (dto == null) return null;
+        if (current.getRole() == UserRole.CLIENT_EMPLOYEE) {
+            EvaluationRequestUpdateDto filtered = new EvaluationRequestUpdateDto();
+            if (requestType == EvaluationRequestType.REAL_ESTATE) {
+                filtered.setCadastralNumber(dto.getCadastralNumber());
+                filtered.setAppraisalPurpose(dto.getAppraisalPurpose());
+                filtered.setOwnerPhone(dto.getOwnerPhone());
+                filtered.setBankEmployeePhone(dto.getBankEmployeePhone());
+                filtered.setBorrowerInn(dto.getBorrowerInn());
+                filtered.setRegionId(dto.getRegionId());
+                filtered.setDistrictId(dto.getDistrictId());
+            } else if (requestType == EvaluationRequestType.VEHICLE) {
+                filtered.setVehicleType(dto.getVehicleType());
+                filtered.setTechPassportNumber(dto.getTechPassportNumber());
+                filtered.setLicensePlate(dto.getLicensePlate());
+                filtered.setBorrowerInn(dto.getBorrowerInn());
+                filtered.setAppraisalPurpose(dto.getAppraisalPurpose());
+                filtered.setOwnerPhone(dto.getOwnerPhone());
+                filtered.setBankEmployeePhone(dto.getBankEmployeePhone());
+            } else if (requestType == EvaluationRequestType.FIXED_ASSETS) {
+                filtered.setPropertyOwnerName(dto.getPropertyOwnerName());
+                filtered.setObjectAddress(dto.getObjectAddress());
+                filtered.setOwnerPhone(dto.getOwnerPhone());
+                filtered.setBankEmployeePhone(dto.getBankEmployeePhone());
+                filtered.setAppraisalPurpose(dto.getAppraisalPurpose());
+                filtered.setBorrowerInn(dto.getBorrowerInn());
+            }
+            return filtered;
+        }
+        if (current.getRole() == UserRole.ADMIN || current.getRole() == UserRole.COMPANY_EMPLOYEE) {
+            EvaluationRequestUpdateDto filtered = new EvaluationRequestUpdateDto();
+            filtered.setStatus(dto.getStatus());
+            filtered.setObjectDescription(dto.getObjectDescription());
+            filtered.setAppraisedObjectName(dto.getAppraisedObjectName());
+            filtered.setBorrowerName(dto.getBorrowerName());
+            filtered.setLicensePlate(dto.getLicensePlate());
+            filtered.setCost(dto.getCost());
+            filtered.setLatitude(dto.getLatitude());
+            filtered.setLongitude(dto.getLongitude());
+            filtered.setLocationAddress(dto.getLocationAddress());
+            filtered.setRegionId(dto.getRegionId());
+            filtered.setDistrictId(dto.getDistrictId());
+            return filtered;
+        }
+        return dto;
+    }
+
+    @Override
+    @Transactional
+    public void delete(String id) {
+        User current = accessValidator.getCurrentUser();
+        accessValidator.validateCanDeleteWithRequestId(current, id);
+        crudService.delete(id);
     }
 
     @Override

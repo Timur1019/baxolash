@@ -3,6 +3,7 @@ package com.test.baxolash.service.impl;
 import com.test.baxolash.service.FileStorageService;
 import com.test.baxolash.util.LogUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class S3FileStorageService implements FileStorageService {
 
+    @Autowired(required = false)
     private final S3Client s3Client;
 
     @Value("${S3_BUCKET:}")

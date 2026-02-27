@@ -1,0 +1,45 @@
+# Production profile. Активация: SPRING_PROFILES_ACTIVE=prod
+# Обязательные env-переменные:
+#   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
+#   SECURITY_JWT_SECRET
+#   S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET, S3_PUBLIC_URL
+#   APP_PUBLIC_BASE_URL — URL бэкенда для QR и публичных ссылок на отчёты
+# Опционально: APP_CORS_ALLOWED_ORIGINS (по умолчанию *), SECURITY_JWT_VALIDITY_MS
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+security:
+  jwt:
+    secret: ${SECURITY_JWT_SECRET}
+    validity-ms: ${SECURITY_JWT_VALIDITY_MS:3600000}
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:*}
+  public-base-url: ${APP_PUBLIC_BASE_URL:}
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
+    com.test.baxolash: INFO
+    org.flywaydb: INFO

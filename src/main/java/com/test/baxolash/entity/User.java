@@ -33,5 +33,13 @@ public class User extends BaseEntity {
 
     @Column(name = "active", nullable = false)
     private Boolean active;
+
+    /** Админ назначает: может ли пользователь редактировать заявки на оценку. */
+    @Column(name = "can_edit_evaluation_requests", nullable = false)
+    private Boolean canEditEvaluationRequests = true;
+
+    /** Админ назначает: может ли пользователь удалять заявки на оценку. */
+    @Column(name = "can_delete_evaluation_requests", nullable = false)
+    private Boolean canDeleteEvaluationRequests = true;
 }
 

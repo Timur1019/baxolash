@@ -112,9 +112,27 @@ public class EvaluationRequestCrudService {
         if (dto.getDistrictId() != null) {
             entity.setDistrict(dto.getDistrictId().isBlank() ? null : districtRepository.findById(dto.getDistrictId()).orElse(null));
         }
+        if (dto.getCadastralNumber() != null) entity.setCadastralNumber(dto.getCadastralNumber().isBlank() ? null : dto.getCadastralNumber());
+        if (dto.getAppraisalPurpose() != null) entity.setAppraisalPurpose(dto.getAppraisalPurpose().isBlank() ? null : dto.getAppraisalPurpose());
+        if (dto.getOwnerPhone() != null) entity.setOwnerPhone(dto.getOwnerPhone().isBlank() ? null : dto.getOwnerPhone());
+        if (dto.getBankEmployeePhone() != null) entity.setBankEmployeePhone(dto.getBankEmployeePhone().isBlank() ? null : dto.getBankEmployeePhone());
+        if (dto.getBorrowerInn() != null) entity.setBorrowerInn(dto.getBorrowerInn().isBlank() ? null : dto.getBorrowerInn());
+        if (dto.getPropertyOwnerName() != null) entity.setPropertyOwnerName(dto.getPropertyOwnerName().isBlank() ? null : dto.getPropertyOwnerName());
+        if (dto.getObjectAddress() != null) entity.setObjectAddress(dto.getObjectAddress().isBlank() ? null : dto.getObjectAddress());
+        if (dto.getVehicleType() != null) entity.setVehicleType(dto.getVehicleType().isBlank() ? null : dto.getVehicleType());
+        if (dto.getTechPassportNumber() != null) entity.setTechPassportNumber(dto.getTechPassportNumber().isBlank() ? null : dto.getTechPassportNumber());
         entity = requestRepository.save(entity);
         LogUtil.info("Evaluation request updated: id={}", id);
         return enricher.enrich(entity);
+    }
+
+    @Transactional
+    public void delete(String id) {
+        EvaluationRequest entity = requestRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Заявка не найдена"));
+        entity.setDeletedAt(java.time.Instant.now());
+        requestRepository.save(entity);
+        LogUtil.info("Evaluation request soft-deleted: id={}", id);
     }
 
     @Transactional(readOnly = true)

@@ -3,6 +3,7 @@ package com.test.baxolash.service.impl;
 import com.test.baxolash.service.S3Service;
 import com.test.baxolash.util.LogUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class S3ServiceImpl implements S3Service {
 
+    @Autowired(required = false)
     private final S3Client s3Client;
 
     @Value("${S3_BUCKET:}")
@@ -41,7 +43,7 @@ public class S3ServiceImpl implements S3Service {
         }
         String originalName = file.getOriginalFilename();
         String safeName = originalName != null && !originalName.isBlank()
-                ? originalName.replaceAll("[^a-zA-Z0-9._-]", "_")
+                ? originalName.replaceAll("[\\\\/:*?\"<>|]", "_").trim()
                 : "file";
         String key = "uploads/" + UUID.randomUUID() + "_" + safeName;
         try {

@@ -37,4 +37,32 @@ public class EvaluationRequestUpdateDto {
 
     private String regionId;
     private String districtId;
+
+    /** Поля, заполняемые клиентом при создании */
+    @Size(max = 100)
+    private String cadastralNumber;
+
+    @Size(max = 100)
+    private String appraisalPurpose;
+
+    @Size(max = 30)
+    private String ownerPhone;
+
+    @Size(max = 30)
+    private String bankEmployeePhone;
+
+    @Size(max = 50)
+    private String borrowerInn;
+
+    @Size(max = 255)
+    private String propertyOwnerName;
+
+    @Size(max = 500)
+    private String objectAddress;
+
+    @Size(max = 100)
+    private String vehicleType;
+
+    @Size(max = 100)
+    private String techPassportNumber;
 }

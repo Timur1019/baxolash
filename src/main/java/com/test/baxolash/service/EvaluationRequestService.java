@@ -46,6 +46,9 @@ public interface EvaluationRequestService {
 
     void deleteReport(String requestId);
 
+    /** Мягкое удаление заявки (deletedAt). Компания/админ — любую; клиент — только свою. */
+    void delete(String id);
+
     FileDownloadResult downloadDocument(String documentId);
 
     List<EvaluationRequestStatus> getStatusesForFilter();

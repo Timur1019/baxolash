@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -25,6 +26,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({BusinessException.class, ValidationException.class})
     public ResponseEntity<Map<String, Object>> handleBusiness(BaseException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return buildResponse(HttpStatus.CONTENT_TOO_LARGE,
+                "Размер файла превышает допустимый лимит. Максимум: 50 MB.");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

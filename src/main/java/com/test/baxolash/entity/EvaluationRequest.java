@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 import lombok.Getter;
@@ -26,6 +27,7 @@ import java.time.Instant;
 @Setter
 @Entity
 @Table(name = "evaluation_requests")
+@SQLRestriction("deleted_at IS NULL")
 public class EvaluationRequest extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,235 +1,332 @@
 package com.test.baxolash.util;
 
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 import com.test.baxolash.dto.EvaluationRequestDto;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import com.test.baxolash.exception.BusinessException;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.*;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 public final class EvaluationRequestExportUtil {
 
+
+    private static final Locale RU = new Locale("ru");
+
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm", RU)
+                    .withZone(ZoneId.systemDefault());
 
     private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
+            DateTimeFormatter.ofPattern("dd.MM.yyyy", RU)
+                    .withZone(ZoneId.systemDefault());
 
-    private static final String FONT_FAMILY = "Times New Roman";
-    private static final String PRIMARY_COLOR = "2C3E50";
-    private static final String SECONDARY_COLOR = "7F8C8D";
-    private static final String ACCENT_COLOR = "3498DB";
+    private static final DateTimeFormatter DAY_FORMATTER =
+            DateTimeFormatter.ofPattern("dd", RU);
 
-    private EvaluationRequestExportUtil() {
-    }
+    private static final DateTimeFormatter MONTH_YEAR_FORMATTER =
+            DateTimeFormatter.ofPattern("MMMM yyyy", RU);
+
+    // Word — цвета
+    private static final String COLOR_PRIMARY   = "2C3E50";
+    private static final String COLOR_SECONDARY = "7F8C8D";
+    private static final String COLOR_BLACK     = "000000";
+
+    // Word — шрифт и размеры
+    private static final String FONT_FAMILY  = "Times New Roman";
+    private static final int FONT_TITLE      = 18;
+    private static final int FONT_ID         = 12;
+    private static final int FONT_SECTION    = 14;
+    private static final int FONT_BODY       = 11;
+    private static final int FONT_LINE       = 10;
+
+    // Excel — максимальная ширина колонки
+    private static final int MAX_COLUMN_WIDTH = 10_000;
+
+    // Excel — заголовки колонок
+    private static final String[] EXCEL_COLUMNS = {
+            "ID", "Дата создания", "Статус", "Клиент", "Email",
+            "Объект оценки", "Описание", "Стоимость", "Отчёт",
+            "Регион", "Район", "Кадастровый номер",
+            "Цель оценки", "Заёмщик", "ИНН заёмщика",
+            "Телефон владельца", "Телефон банка",
+            "Адрес объекта", "Координаты"
+    };
+
+    private EvaluationRequestExportUtil() {}
+
+    // =====================================================
+    //                       EXCEL
+    // =====================================================
 
     public static byte[] buildExcelForRequests(List<EvaluationRequestDto> items) {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
             Sheet sheet = workbook.createSheet("Заявки на оценку");
 
-            // Стиль для заголовка
-            org.apache.poi.ss.usermodel.CellStyle headerStyle = workbook.createCellStyle();
-            org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            headerFont.setColor(org.apache.poi.ss.usermodel.IndexedColors.WHITE.getIndex());
-            headerStyle.setFont(headerFont);
-            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.DARK_BLUE.getIndex());
-            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
-            headerStyle.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            headerStyle.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            headerStyle.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            headerStyle.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+            CellStyle headerStyle = buildHeaderStyle(workbook);
+            CellStyle cellStyle   = buildCellStyle(workbook);
 
-            // Стиль для ячеек
-            org.apache.poi.ss.usermodel.CellStyle cellStyle = workbook.createCellStyle();
-            cellStyle.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            cellStyle.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            cellStyle.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            cellStyle.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-            cellStyle.setWrapText(true);
-
-            Row header = sheet.createRow(0);
-            String[] columns = new String[]{
-                    "ID", "Дата создания", "Статус", "Клиент", "Email",
-                    "Объект оценки", "Описание", "Стоимость", "Отчёт",
-                    "Регион", "Район", "Кадастровый номер",
-                    "Цель оценки", "Заёмщик", "ИНН заёмщика",
-                    "Телефон владельца", "Телефон банка",
-                    "Адрес объекта", "Координаты"
-            };
-
-            for (int i = 0; i < columns.length; i++) {
-                Cell cell = header.createCell(i);
-                cell.setCellValue(columns[i]);
-                cell.setCellStyle(headerStyle);
-            }
-
-            int rowIdx = 1;
-            for (EvaluationRequestDto dto : items) {
-                Row row = sheet.createRow(rowIdx++);
-                int col = 0;
-
-                createCell(row, col++, dto.getId(), cellStyle);
-                createCell(row, col++, formatDate(dto.getCreatedAt()), cellStyle);
-                createCell(row, col++, formatStatus(dto.getStatus()), cellStyle);
-                createCell(row, col++, dto.getClientFullName(), cellStyle);
-                createCell(row, col++, dto.getClientEmail(), cellStyle);
-                createCell(row, col++, dto.getAppraisedObjectName(), cellStyle);
-                createCell(row, col++, dto.getObjectDescription(), cellStyle);
-                createCell(row, col++, formatCost(dto.getCost()), cellStyle);
-                createCell(row, col++, dto.getHasReportFile() ? "✓" : "—", cellStyle);
-                createCell(row, col++, dto.getRegionNameUz(), cellStyle);
-                createCell(row, col++, dto.getDistrictNameUz(), cellStyle);
-                createCell(row, col++, dto.getCadastralNumber(), cellStyle);
-                createCell(row, col++, dto.getAppraisalPurpose(), cellStyle);
-                createCell(row, col++, dto.getBorrowerName(), cellStyle);
-                createCell(row, col++, dto.getBorrowerInn(), cellStyle);
-                createCell(row, col++, dto.getOwnerPhone(), cellStyle);
-                createCell(row, col++, dto.getBankEmployeePhone(), cellStyle);
-                createCell(row, col++, dto.getObjectAddress(), cellStyle);
-                createCell(row, col++, formatCoordinates(dto.getLatitude(), dto.getLongitude()), cellStyle);
-            }
-
-            // Автоматическая ширина колонок
-            for (int i = 0; i < columns.length; i++) {
-                sheet.autoSizeColumn(i);
-                sheet.setColumnWidth(i, Math.min(sheet.getColumnWidth(i), 10000));
-            }
+            writeHeader(sheet, headerStyle);
+            writeRows(sheet, items, cellStyle);
+            autoSizeColumns(sheet, EXCEL_COLUMNS.length);
 
             workbook.write(out);
             return out.toByteArray();
+
         } catch (IOException e) {
-            throw new RuntimeException("Ошибка при создании Excel-файла", e);
+            throw new BusinessException("Ошибка при создании Excel-файла");
         }
     }
 
-    public static byte[] buildWordForRequest(EvaluationRequestDto dto) {
-        try (XWPFDocument doc = new XWPFDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            // === ШАПКА ДОКУМЕНТА ===
-            addHeader(doc, dto.getId());
-
-            // === ОСНОВНАЯ ИНФОРМАЦИЯ ===
-            addSection(doc, "1. ОСНОВНАЯ ИНФОРМАЦИЯ", 1);
-            addInfoRow(doc, "Дата создания:", formatDateTime(dto.getCreatedAt()));
-            addInfoRow(doc, "Статус заявки:", formatStatus(dto.getStatus()));
-            addInfoRow(doc, "Клиент:", formatClient(dto.getClientFullName(), dto.getClientEmail()));
-            addInfoRow(doc, "Стоимость оценки:", formatCost(dto.getCost()));
-
-            // === ОБЪЕКТ ОЦЕНКИ ===
-            addSection(doc, "2. ОБЪЕКТ ОЦЕНКИ", 2);
-            addInfoRow(doc, "Наименование:", dto.getAppraisedObjectName());
-            addInfoRow(doc, "Описание:", dto.getObjectDescription());
-            addInfoRow(doc, "Кадастровый номер:", dto.getCadastralNumber());
-            addInfoRow(doc, "Цель оценки:", dto.getAppraisalPurpose());
-            addInfoRow(doc, "Адрес:", dto.getObjectAddress());
-            addInfoRow(doc, "Координаты:", formatCoordinates(dto.getLatitude(), dto.getLongitude()));
-
-            // === ЗАЁМЩИК И КОНТАКТЫ ===
-            addSection(doc, "3. ЗАЁМЩИК И КОНТАКТЫ", 3);
-            addInfoRow(doc, "Заёмщик:", dto.getBorrowerName());
-            addInfoRow(doc, "ИНН заёмщика:", dto.getBorrowerInn());
-            addInfoRow(doc, "Телефон владельца:", dto.getOwnerPhone());
-            addInfoRow(doc, "Телефон банка:", dto.getBankEmployeePhone());
-
-            // === МЕСТОПОЛОЖЕНИЕ ===
-            if (dto.getRegionNameUz() != null || dto.getDistrictNameUz() != null) {
-                addSection(doc, "4. МЕСТОПОЛОЖЕНИЕ", 4);
-                addInfoRow(doc, "Регион:", dto.getRegionNameUz());
-                addInfoRow(doc, "Район:", dto.getDistrictNameUz());
-                addInfoRow(doc, "Адрес местоположения:", dto.getLocationAddress());
-            }
-
-            // === ПОДПИСИ ===
-            addSignatures(doc);
-
-            doc.write(out);
-            return out.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException("Ошибка при создании Word-документа", e);
+    private static void writeHeader(Sheet sheet, CellStyle style) {
+        Row header = sheet.createRow(0);
+        for (int i = 0; i < EXCEL_COLUMNS.length; i++) {
+            Cell cell = header.createCell(i);
+            cell.setCellValue(EXCEL_COLUMNS[i]);
+            cell.setCellStyle(style);
         }
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ EXCEL ====================
+    private static void writeRows(Sheet sheet, List<EvaluationRequestDto> items, CellStyle style) {
+        int rowIdx = 1;
+        for (EvaluationRequestDto dto : items) {
+            Row row = sheet.createRow(rowIdx++);
+            int col = 0;
 
-    private static void createCell(Row row, int col, String value, org.apache.poi.ss.usermodel.CellStyle style) {
+            setCell(row, col++, dto.getId(), style);
+            setCell(row, col++, formatDate(dto.getCreatedAt()), style);
+            setCell(row, col++, formatStatus(dto.getStatus()), style);
+            setCell(row, col++, dto.getClientFullName(), style);
+            setCell(row, col++, dto.getClientEmail(), style);
+            setCell(row, col++, dto.getAppraisedObjectName(), style);
+            setCell(row, col++, dto.getObjectDescription(), style);
+            setCell(row, col++, formatCost(dto.getCost()), style);
+            setCell(row, col++, Boolean.TRUE.equals(dto.getHasReportFile()) ? "✓" : "—", style);
+            setCell(row, col++, dto.getRegionNameUz(), style);
+            setCell(row, col++, dto.getDistrictNameUz(), style);
+            setCell(row, col++, dto.getCadastralNumber(), style);
+            setCell(row, col++, dto.getAppraisalPurpose(), style);
+            setCell(row, col++, dto.getBorrowerName(), style);
+            setCell(row, col++, dto.getBorrowerInn(), style);
+            setCell(row, col++, dto.getOwnerPhone(), style);
+            setCell(row, col++, dto.getBankEmployeePhone(), style);
+            setCell(row, col++, dto.getObjectAddress(), style);
+            setCell(row, col,   formatCoordinates(dto.getLatitude(), dto.getLongitude()), style);
+        }
+    }
+
+    private static void setCell(Row row, int col, String value, CellStyle style) {
         Cell cell = row.createCell(col);
         cell.setCellValue(value != null ? value : "—");
         cell.setCellStyle(style);
     }
 
-    private static void createCell(Row row, int col, Boolean value, org.apache.poi.ss.usermodel.CellStyle style) {
-        Cell cell = row.createCell(col);
-        cell.setCellValue(value != null ? (value ? "✓" : "—") : "—");
-        cell.setCellStyle(style);
+    private static void autoSizeColumns(Sheet sheet, int count) {
+        for (int i = 0; i < count; i++) {
+            sheet.autoSizeColumn(i);
+            sheet.setColumnWidth(i, Math.min(sheet.getColumnWidth(i), MAX_COLUMN_WIDTH));
+        }
     }
 
-    private static void createCell(Row row, int col, BigDecimal value, org.apache.poi.ss.usermodel.CellStyle style) {
-        Cell cell = row.createCell(col);
-        cell.setCellValue(formatCost(value));
-        cell.setCellStyle(style);
+    private static CellStyle buildHeaderStyle(Workbook wb) {
+        org.apache.poi.ss.usermodel.Font font = wb.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+
+        CellStyle style = wb.createCellStyle();
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        applyThinBorders(style);
+        return style;
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ WORD ====================
+    private static CellStyle buildCellStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        applyThinBorders(style);
+        style.setWrapText(true);
+        return style;
+    }
 
-    private static void addHeader(XWPFDocument doc, String requestId) {
+    private static void applyThinBorders(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+    }
+
+    // =====================================================
+    //                       WORD
+    // =====================================================
+
+    /**
+     * Сборка PDF-отчёта по заявке (для просмотра по QR-коду).
+     */
+    public static byte[] buildPdfForRequest(EvaluationRequestDto dto) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document doc = new Document();
+            PdfWriter.getInstance(doc, out);
+            doc.open();
+
+            Font fontTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.DARK_GRAY);
+            Font fontId = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 12, Color.GRAY);
+            Font fontSection = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, Color.DARK_GRAY);
+            Font fontLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.DARK_GRAY);
+            Font fontBody = FontFactory.getFont(FontFactory.HELVETICA, 11, Color.BLACK);
+
+            doc.add(new Paragraph("ОТЧЁТ ПО ЗАЯВКЕ НА ОЦЕНКУ", fontTitle));
+            String shortId = dto.getId() != null ? dto.getId().substring(0, Math.min(8, dto.getId().length())) : "—";
+            doc.add(new Paragraph("№ " + shortId, fontId));
+            doc.add(new Paragraph(" "));
+
+            addPdfSection(doc, "1. ОСНОВНАЯ ИНФОРМАЦИЯ", fontSection);
+            addPdfRow(doc, "Дата создания:", formatDateTime(dto.getCreatedAt()), fontLabel, fontBody);
+            addPdfRow(doc, "Статус заявки:", formatStatus(dto.getStatus()), fontLabel, fontBody);
+            addPdfRow(doc, "Клиент:", formatClient(dto.getClientFullName(), dto.getClientEmail()), fontLabel, fontBody);
+            addPdfRow(doc, "Стоимость оценки:", formatCost(dto.getCost()), fontLabel, fontBody);
+
+            addPdfSection(doc, "2. ОБЪЕКТ ОЦЕНКИ", fontSection);
+            addPdfRow(doc, "Наименование:", dto.getAppraisedObjectName(), fontLabel, fontBody);
+            addPdfRow(doc, "Описание:", dto.getObjectDescription(), fontLabel, fontBody);
+            addPdfRow(doc, "Кадастровый номер:", dto.getCadastralNumber(), fontLabel, fontBody);
+            addPdfRow(doc, "Цель оценки:", dto.getAppraisalPurpose(), fontLabel, fontBody);
+            addPdfRow(doc, "Адрес:", dto.getObjectAddress(), fontLabel, fontBody);
+            addPdfRow(doc, "Координаты:", formatCoordinates(dto.getLatitude(), dto.getLongitude()), fontLabel, fontBody);
+
+            addPdfSection(doc, "3. ЗАЁМЩИК И КОНТАКТЫ", fontSection);
+            addPdfRow(doc, "Заёмщик:", dto.getBorrowerName(), fontLabel, fontBody);
+            addPdfRow(doc, "ИНН заёмщика:", dto.getBorrowerInn(), fontLabel, fontBody);
+            addPdfRow(doc, "Телефон владельца:", dto.getOwnerPhone(), fontLabel, fontBody);
+            addPdfRow(doc, "Телефон банка:", dto.getBankEmployeePhone(), fontLabel, fontBody);
+
+            if (dto.getRegionNameUz() != null || dto.getDistrictNameUz() != null) {
+                addPdfSection(doc, "4. МЕСТОПОЛОЖЕНИЕ", fontSection);
+                addPdfRow(doc, "Регион:", dto.getRegionNameUz(), fontLabel, fontBody);
+                addPdfRow(doc, "Район:", dto.getDistrictNameUz(), fontLabel, fontBody);
+                addPdfRow(doc, "Адрес местоположения:", dto.getLocationAddress(), fontLabel, fontBody);
+            }
+
+            doc.close();
+            return out.toByteArray();
+        } catch (DocumentException | IOException e) {
+            throw new BusinessException("Ошибка при создании PDF-отчёта");
+        }
+    }
+
+    private static void addPdfSection(Document doc, String title, Font fontSection) throws DocumentException {
+        doc.add(new Paragraph(" "));
+        doc.add(new Paragraph(title, fontSection));
+        doc.add(new Paragraph(" "));
+    }
+
+    private static void addPdfRow(Document doc, String label, String value, Font fontLabel, Font fontBody) throws DocumentException {
+        if (value == null || value.isBlank() || "—".equals(value)) return;
+        Paragraph p = new Paragraph();
+        p.add(new com.lowagie.text.Chunk(label, fontLabel));
+        p.add(new com.lowagie.text.Chunk(" " + value, fontBody));
+        doc.add(p);
+    }
+
+    public static byte[] buildWordForRequest(EvaluationRequestDto dto) {
+        try (XWPFDocument doc = new XWPFDocument();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            addDocumentHeader(doc, dto.getId());
+
+            addSection(doc, "1. ОСНОВНАЯ ИНФОРМАЦИЯ");
+            addInfoRow(doc, "Дата создания:",    formatDateTime(dto.getCreatedAt()));
+            addInfoRow(doc, "Статус заявки:",    formatStatus(dto.getStatus()));
+            addInfoRow(doc, "Клиент:",           formatClient(dto.getClientFullName(), dto.getClientEmail()));
+            addInfoRow(doc, "Стоимость оценки:", formatCost(dto.getCost()));
+
+            addSection(doc, "2. ОБЪЕКТ ОЦЕНКИ");
+            addInfoRow(doc, "Наименование:",      dto.getAppraisedObjectName());
+            addInfoRow(doc, "Описание:",          dto.getObjectDescription());
+            addInfoRow(doc, "Кадастровый номер:", dto.getCadastralNumber());
+            addInfoRow(doc, "Цель оценки:",       dto.getAppraisalPurpose());
+            addInfoRow(doc, "Адрес:",             dto.getObjectAddress());
+            addInfoRow(doc, "Координаты:",        formatCoordinates(dto.getLatitude(), dto.getLongitude()));
+
+            addSection(doc, "3. ЗАЁМЩИК И КОНТАКТЫ");
+            addInfoRow(doc, "Заёмщик:",           dto.getBorrowerName());
+            addInfoRow(doc, "ИНН заёмщика:",      dto.getBorrowerInn());
+            addInfoRow(doc, "Телефон владельца:", dto.getOwnerPhone());
+            addInfoRow(doc, "Телефон банка:",     dto.getBankEmployeePhone());
+
+            if (dto.getRegionNameUz() != null || dto.getDistrictNameUz() != null) {
+                addSection(doc, "4. МЕСТОПОЛОЖЕНИЕ");
+                addInfoRow(doc, "Регион:",                dto.getRegionNameUz());
+                addInfoRow(doc, "Район:",                 dto.getDistrictNameUz());
+                addInfoRow(doc, "Адрес местоположения:", dto.getLocationAddress());
+            }
+
+            addSignatures(doc);
+
+            doc.write(out);
+            return out.toByteArray();
+
+        } catch (IOException e) {
+            throw new BusinessException("Ошибка при создании Word-документа");
+        }
+    }
+
+    private static void addDocumentHeader(XWPFDocument doc, String requestId) {
         XWPFParagraph title = doc.createParagraph();
         title.setAlignment(ParagraphAlignment.CENTER);
         title.setSpacingAfter(200);
 
         XWPFRun titleRun = title.createRun();
         titleRun.setText("ОТЧЁТ ПО ЗАЯВКЕ НА ОЦЕНКУ");
-        titleRun.setBold(true);
-        titleRun.setFontSize(18);
-        titleRun.setFontFamily(FONT_FAMILY);
-        titleRun.setColor(PRIMARY_COLOR);
+        applyStyle(titleRun, FONT_TITLE, true, false, COLOR_PRIMARY);
         titleRun.addBreak();
 
-        XWPFRun idRun = title.createRun();
-        idRun.setText("№ " + (requestId != null ? requestId.substring(0, Math.min(8, requestId.length())) : "—"));
-        idRun.setFontSize(12);
-        idRun.setFontFamily(FONT_FAMILY);
-        idRun.setColor(SECONDARY_COLOR);
-        idRun.setItalic(true);
+        String shortId = requestId != null
+                ? requestId.substring(0, Math.min(8, requestId.length()))
+                : "—";
 
-        addEmptyLine(doc, 1);
+        XWPFRun idRun = title.createRun();
+        idRun.setText("№ " + shortId);
+        applyStyle(idRun, FONT_ID, false, true, COLOR_SECONDARY);
+
+        addEmptyLines(doc, 1);
     }
 
-    private static void addSection(XWPFDocument doc, String title, int number) {
+    private static void addSection(XWPFDocument doc, String sectionTitle) {
         XWPFParagraph p = doc.createParagraph();
         p.setSpacingBefore(400);
         p.setSpacingAfter(200);
-        p.setPageBreak(number > 1 && number % 2 == 1);
 
-        XWPFRun r = p.createRun();
-        r.setText(title);
-        r.setBold(true);
-        r.setFontSize(14);
-        r.setFontFamily(FONT_FAMILY);
-        r.setColor(PRIMARY_COLOR);
-        r.addBreak();
+        XWPFRun titleRun = p.createRun();
+        titleRun.setText(sectionTitle);
+        applyStyle(titleRun, FONT_SECTION, true, false, COLOR_PRIMARY);
+        titleRun.addBreak();
 
-        XWPFRun line = p.createRun();
-        line.setText("—".repeat(50));
-        line.setFontSize(10);
-        line.setFontFamily(FONT_FAMILY);
-        line.setColor(SECONDARY_COLOR);
+        XWPFRun lineRun = p.createRun();
+        lineRun.setText("—".repeat(50));
+        applyStyle(lineRun, FONT_LINE, false, false, COLOR_SECONDARY);
 
-        addEmptyLine(doc, 1);
+        addEmptyLines(doc, 1);
     }
 
     private static void addInfoRow(XWPFDocument doc, String label, String value) {
-        if (value == null || value.trim().isEmpty() || value.equals("—")) return;
+        if (value == null || value.isBlank() || "—".equals(value)) return;
 
         XWPFParagraph p = doc.createParagraph();
         p.setSpacingAfter(60);
@@ -237,77 +334,79 @@ public final class EvaluationRequestExportUtil {
 
         XWPFRun labelRun = p.createRun();
         labelRun.setText(label);
-        labelRun.setBold(true);
-        labelRun.setFontSize(11);
-        labelRun.setFontFamily(FONT_FAMILY);
-        labelRun.setColor(PRIMARY_COLOR);
+        applyStyle(labelRun, FONT_BODY, true, false, COLOR_PRIMARY);
 
         XWPFRun valueRun = p.createRun();
         valueRun.setText(" " + value);
-        valueRun.setFontSize(11);
-        valueRun.setFontFamily(FONT_FAMILY);
-        valueRun.setColor("000000");
+        applyStyle(valueRun, FONT_BODY, false, false, COLOR_BLACK);
     }
 
     private static void addSignatures(XWPFDocument doc) {
-        addEmptyLine(doc, 3);
+        addEmptyLines(doc, 3);
 
         XWPFTable table = doc.createTable(1, 2);
         table.setWidth("100%");
         table.setCellMargins(200, 200, 200, 200);
+        removeTableBorders(table);
 
-        CTTblPr tblPr = table.getCTTbl().getTblPr();
-        if (tblPr == null) tblPr = table.getCTTbl().addNewTblPr();
-
-        CTTblBorders borders = tblPr.getTblBorders();
-        if (borders == null) borders = tblPr.addNewTblBorders();
-        borders.addNewTop().setVal(STBorder.NONE);
-        borders.addNewBottom().setVal(STBorder.NONE);
-        borders.addNewLeft().setVal(STBorder.NONE);
-        borders.addNewRight().setVal(STBorder.NONE);
-        borders.addNewInsideH().setVal(STBorder.NONE);
-        borders.addNewInsideV().setVal(STBorder.NONE);
-
-        // Левая ячейка - исполнитель
-        XWPFTableCell leftCell = table.getRow(0).getCell(0);
-        leftCell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
-
-        XWPFParagraph leftP = leftCell.addParagraph();
+        // Левая ячейка — исполнитель
+        XWPFParagraph leftP = getFirstParagraph(table.getRow(0).getCell(0));
         leftP.setAlignment(ParagraphAlignment.LEFT);
         XWPFRun leftRun = leftP.createRun();
         leftRun.setText("Исполнитель:");
-        leftRun.setBold(true);
-        leftRun.setFontSize(11);
-        leftRun.setFontFamily(FONT_FAMILY);
-        leftRun.setColor(PRIMARY_COLOR);
+        applyStyle(leftRun, FONT_BODY, true, false, COLOR_PRIMARY);
         leftRun.addBreak();
         leftRun.addBreak();
         leftRun.setText("____________________");
-        leftRun.setFontSize(11);
+        leftRun.setFontSize(FONT_BODY);
 
-        // Правая ячейка - дата
-        XWPFTableCell rightCell = table.getRow(0).getCell(1);
-        rightCell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
-
-        XWPFParagraph rightP = rightCell.addParagraph();
+        // Правая ячейка — дата
+        XWPFParagraph rightP = getFirstParagraph(table.getRow(0).getCell(1));
         rightP.setAlignment(ParagraphAlignment.RIGHT);
         XWPFRun rightRun = rightP.createRun();
         rightRun.setText("Дата:");
-        rightRun.setBold(true);
-        rightRun.setFontSize(11);
-        rightRun.setFontFamily(FONT_FAMILY);
-        rightRun.setColor(PRIMARY_COLOR);
+        applyStyle(rightRun, FONT_BODY, true, false, COLOR_PRIMARY);
         rightRun.addBreak();
         rightRun.addBreak();
-        rightRun.setText("\"" + java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd")) + "\" "
-                + java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM yyyy")));
-        rightRun.setFontSize(11);
+
+        LocalDate today = LocalDate.now();
+        rightRun.setText("\"" + today.format(DAY_FORMATTER) + "\" " + today.format(MONTH_YEAR_FORMATTER));
+        rightRun.setFontSize(FONT_BODY);
     }
 
-    private static void addEmptyLine(XWPFDocument doc, int count) {
+    // ==================== УТИЛИТЫ ДЛЯ WORD ====================
+
+    private static void applyStyle(XWPFRun run, int size, boolean bold, boolean italic, String color) {
+        run.setFontSize(size);
+        run.setFontFamily(FONT_FAMILY);
+        run.setBold(bold);
+        run.setItalic(italic);
+        run.setColor(color);
+    }
+
+    private static void removeTableBorders(XWPFTable table) {
+        CTTblPr tblPr = table.getCTTbl().getTblPr();
+        if (tblPr == null) tblPr = table.getCTTbl().addNewTblPr();
+        CTTblBorders b = tblPr.isSetTblBorders()
+                ? tblPr.getTblBorders()
+                : tblPr.addNewTblBorders();
+        b.addNewTop().setVal(STBorder.NONE);
+        b.addNewBottom().setVal(STBorder.NONE);
+        b.addNewLeft().setVal(STBorder.NONE);
+        b.addNewRight().setVal(STBorder.NONE);
+        b.addNewInsideH().setVal(STBorder.NONE);
+        b.addNewInsideV().setVal(STBorder.NONE);
+    }
+
+    private static XWPFParagraph getFirstParagraph(XWPFTableCell cell) {
+        return cell.getParagraphs().isEmpty()
+                ? cell.addParagraph()
+                : cell.getParagraphs().get(0);
+    }
+
+    private static void addEmptyLines(XWPFDocument doc, int count) {
         for (int i = 0; i < count; i++) {
-            XWPFParagraph p = doc.createParagraph();
-            p.setSpacingAfter(120);
+            doc.createParagraph().setSpacingAfter(120);
         }
     }
 
@@ -333,15 +432,22 @@ public final class EvaluationRequestExportUtil {
 
     private static String formatStatus(Enum<?> status) {
         if (status == null) return "—";
-        String name = status.name();
-        switch (name) {
-            case "NEW": return "Новая";
-            case "IN_PROGRESS": return "В работе";
-            case "COMPLETED": return "Завершена";
-            case "CANCELLED": return "Отменена";
-            case "REPORT_READY": return "Отчёт готов";
-            default: return name;
-        }
+        return switch (status.name()) {
+            // ✅ Реальные статусы из БД
+            case "NOT_REVIEWED"          -> "Не рассмотрена";
+            case "ASSIGNED_TO_APPRAISER" -> "Назначен оценщик";
+            case "IN_APPRAISAL"          -> "На оценке";
+            case "IN_IDENTIFICATION"     -> "На идентификации";
+            case "APPROVED"              -> "Утверждена";
+            case "NOT_READY"             -> "Не готова";
+            case "CANCELLED"             -> "Отменена";
+            // Легаси — на всякий случай
+            case "NEW"                   -> "Новая";
+            case "IN_PROGRESS"           -> "В работе";
+            case "COMPLETED"             -> "Завершена";
+            case "REPORT_READY"          -> "Отчёт готов";
+            default                      -> status.name();
+        };
     }
 
     private static String formatCost(BigDecimal cost) {

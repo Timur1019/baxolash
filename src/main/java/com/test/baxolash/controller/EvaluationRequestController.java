@@ -8,8 +8,11 @@ import com.test.baxolash.entity.enums.EvaluationRequestStatus;
 import com.test.baxolash.entity.EvaluationRequestType;
 import com.test.baxolash.service.EvaluationRequestService;
 import com.test.baxolash.service.EvaluationRequestExportService;
+import com.test.baxolash.service.ReportTokenService;
 import com.test.baxolash.util.MediaTypeUtil;
+import com.test.baxolash.util.QrCodeUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.beans.factory.annotation.Value;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -39,6 +43,10 @@ public class EvaluationRequestController {
 
     private final EvaluationRequestService evaluationRequestService;
     private final EvaluationRequestExportService exportService;
+    private final ReportTokenService reportTokenService;
+
+    @Value("${app.public-base-url:http://localhost:8080}")
+    private String publicBaseUrl;
 
     @PostMapping
     @Operation(summary = "Создать заявку (клиент — банк)")
@@ -136,7 +144,7 @@ public class EvaluationRequestController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Редактировать заявку — статус, описание, стоимость (сотрудник компании)")
+    @Operation(summary = "Редактировать заявку: компания/админ — любую; клиент — только свою")
     public ResponseEntity<EvaluationRequestDto> update(
             @PathVariable String id,
             @Valid @RequestBody EvaluationRequestUpdateDto dto) {
@@ -158,6 +166,13 @@ public class EvaluationRequestController {
             @PathVariable String id,
             @RequestParam("file") MultipartFile file) {
         evaluationRequestService.uploadReport(id, file);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Удалить заявку (мягкое удаление). Компания/админ — любую; клиент — только свою")
+    public ResponseEntity<Void> delete(@PathVariable String id) {
+        evaluationRequestService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -195,5 +210,27 @@ public class EvaluationRequestController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName)
                 .contentType(MediaTypeUtil.resolveMediaType(result.getFileName()))
                 .body(new InputStreamResource(result.getInputStream()));
+    }
+
+    @GetMapping("/{id}/report-public-url")
+    @Operation(summary = "URL для QR-кода: при сканировании открывается PDF-отчёт (без авторизации)")
+    public ResponseEntity<java.util.Map<String, String>> getReportPublicUrl(@PathVariable String id) {
+        evaluationRequestService.getById(id); // проверка существования и прав
+        String token = reportTokenService.generateToken(id);
+        String url = publicBaseUrl.replaceAll("/$", "") + "/api/public/report?token=" + token;
+        return ResponseEntity.ok(java.util.Map.of("url", url));
+    }
+
+    @GetMapping("/{id}/report-qr")
+    @Operation(summary = "QR-код в виде PNG: отобразить на клиенте/в компании; сканирование открывает PDF-отчёт")
+    public ResponseEntity<InputStreamResource> getReportQrImage(@PathVariable String id) {
+        evaluationRequestService.getById(id);
+        String token = reportTokenService.generateToken(id);
+        String url = publicBaseUrl.replaceAll("/$", "") + "/api/public/report?token=" + token;
+        byte[] png = QrCodeUtil.generateQrPng(url);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .contentLength(png.length)
+                .body(new InputStreamResource(new ByteArrayInputStream(png)));
     }
 }

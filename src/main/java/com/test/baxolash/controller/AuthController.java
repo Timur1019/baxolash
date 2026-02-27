@@ -37,47 +37,34 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
-    @Operation(summary = "Вход в систему по логину и паролю")
-    @ApiResponse(
-            responseCode = "200",
-            description = "Успешная аутентификация",
-            content = @Content(schema = @Schema(implementation = AuthResponseDto.class))
-    )
     public ResponseEntity<AuthResponseDto> login(@Valid @RequestBody AuthRequestDto request) {
-        String login = request.getLogin() != null ? request.getLogin().trim() : "";
-        String password = request.getPassword() != null ? request.getPassword() : "";
-        if (login.isEmpty() || password.isEmpty()) {
-            throw new BusinessException("Неверный логин или пароль");
-        }
-        LogUtil.info("Login attempt for user={}", login);
+        String login = request.getLogin().trim();
+        String password = request.getPassword();
 
-        // Вход по логину или по email (одно поле на фронте)
+        // Находим пользователя по логину или email
         User user = userRepository.findByLoginAndDeletedAtIsNull(login)
                 .or(() -> userRepository.findByEmailAndDeletedAtIsNull(login))
                 .orElseThrow(() -> new BusinessException("Неверный логин или пароль"));
 
-        if (!user.getActive()) {
-            throw new BusinessException("Пользователь не активен");
-        }
-
+        if (!user.getActive()) throw new BusinessException("Пользователь не активен");
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BusinessException("Неверный логин или пароль");
         }
 
+        // ✅ Используем ЛОГИН (не email) для создания Authentication
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(login, password)
+                new UsernamePasswordAuthenticationToken(user.getLogin(), password)
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = tokenProvider.generateToken(authentication);
 
-        AuthResponseDto response = new AuthResponseDto(
-                token,
-                user.getFullName(),
-                user.getRole().name()
-        );
-
-        return ResponseEntity.ok(response);
+        boolean canEdit = "ADMIN".equals(user.getRole().name())
+                || Boolean.TRUE.equals(user.getCanEditEvaluationRequests());
+        boolean canDelete = "ADMIN".equals(user.getRole().name())
+                || Boolean.TRUE.equals(user.getCanDeleteEvaluationRequests());
+        return ResponseEntity.ok(new AuthResponseDto(token, user.getFullName(), user.getRole().name(), canEdit, canDelete));
     }
+
 }
 

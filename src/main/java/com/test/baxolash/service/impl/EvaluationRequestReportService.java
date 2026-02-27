@@ -85,6 +85,7 @@ public class EvaluationRequestReportService {
 
     private static String sanitizeFileName(String name) {
         if (name == null || name.isBlank()) return "document";
-        return name.replaceAll("[^a-zA-Z0-9._-]", "_");
+        return name.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
+
 }
