@@ -12,8 +12,8 @@ spring:
     resources:
       add-mappings: false
 
-  profiles:
-    active: local
+#  profiles:
+#    active:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/baxolash
