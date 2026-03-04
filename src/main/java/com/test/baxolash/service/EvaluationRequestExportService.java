@@ -1,5 +1,6 @@
 package com.test.baxolash.service;
 
+import com.test.baxolash.dto.EvaluationRequestDto;
 import com.test.baxolash.entity.enums.EvaluationRequestStatus;
 
 public interface EvaluationRequestExportService {
@@ -15,5 +16,10 @@ public interface EvaluationRequestExportService {
      * Экспорт одной заявки в PDF — для просмотра по QR-коду (публичная ссылка).
      */
     byte[] exportSingleToPdf(String requestId);
+
+    /**
+     * DTO заявки для публичного отчёта (HTML/PDF по токену).
+     */
+    EvaluationRequestDto getDtoForPublicReport(String requestId);
 }
 

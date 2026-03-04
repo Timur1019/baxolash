@@ -51,5 +51,10 @@ public class EvaluationRequestExportServiceImpl implements EvaluationRequestExpo
         }
         return EvaluationRequestExportUtil.buildPdfForRequest(dto);
     }
+
+    @Override
+    public EvaluationRequestDto getDtoForPublicReport(String requestId) {
+        return crudService.getById(requestId);
+    }
 }
 
